@@ -98,12 +98,12 @@ class YouTubeSummarizer:
             # Add model-specific parameters
             if self.model == "o3-mini":
                 params.update({
-                    "max_completion_tokens": 2000 if complexity == "complex" else 1000
+                    "max_completion_tokens": 4000 if complexity == "complex" else 1000
                 })
             else:  # For other OpenAI models
                 params.update({
                     "temperature": 0.7,
-                    "max_tokens": 2000 if complexity == "complex" else 1000
+                    "max_tokens": 4000 if complexity == "complex" else 1000
                 })
                 
             # Send the request and stream the response
@@ -125,49 +125,6 @@ class YouTubeSummarizer:
             return full_response.strip()
         except Exception as e:
             raise Exception(f"Error generating summary: {str(e)}")
-
-    def translate_to_polish(self, text: str) -> str:
-        """Translate text to Polish using OpenAI API with streaming."""
-        try:
-            params = {
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": "You are a helpful translator. Translate the following text to Polish, maintaining the same tone and style:"},
-                    {"role": "user", "content": text}
-                ],
-                "stream": True  # Enable streaming
-            }
-
-            # Add model-specific parameters
-            if self.model == "o3-mini":
-                params.update({
-                    "max_completion_tokens": 2000
-                })
-            else:
-                params.update({
-                    "temperature": 0.7,
-                    "max_tokens": 2000
-                })
-
-            # Send the request and stream the response
-            full_response = ""
-            if self.client is None:
-                import openai
-                stream = openai.chat.completions.create(**params)
-            else:
-                stream = self.client.chat.completions.create(**params)
-
-            # Process the stream
-            for chunk in stream:
-                if chunk.choices[0].delta.content is not None:
-                    content = chunk.choices[0].delta.content
-                    print(content, end='', flush=True)
-                    full_response += content
-
-            print()  # New line after streaming completes
-            return full_response.strip()
-        except Exception as e:
-            raise Exception(f"Error translating to Polish: {str(e)}")
 
     def summarize_video(self, url: str) -> Dict[str, Dict[str, str]]:
         """Main function to summarize YouTube video."""
@@ -207,7 +164,7 @@ class YouTubeSummarizer:
 
 def main():
     # Default URL and language if none provided
-    default_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    default_url = ""
     default_language = "eng"
     valid_languages = ["eng", "pl"]
     
