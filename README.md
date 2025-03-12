@@ -1,18 +1,17 @@
 # YouTube Video Summarizer
 
-This program takes a YouTube video URL as input and generates three different summaries of varying complexity in both English and Polish using OpenAI's API.
+This program takes a YouTube video URL as input and generates three different summaries of varying complexity in English or Polish using OpenAI's API.
 
 ## Features
 
 - Extracts transcripts from YouTube videos
-- Generates three different summary levels in English:
+- Generates three different summary levels:
   - Simple: A brief overview
   - Moderate: A more detailed summary
   - Complex: A comprehensive analysis
-- Automatically translates all summaries to Polish:
-  - Podsumowanie Proste: Simple summary in Polish
-  - Podsumowanie Średnio Zaawansowane: Moderate summary in Polish
-  - Podsumowanie Złożone: Complex summary in Polish
+- Supports two languages:
+  - English (eng): Default language
+  - Polish (pl): Full Polish translation
 - Uses OpenAI's o3-mini model by default
 - Secure API key handling through environment variables
 
@@ -45,25 +44,35 @@ This program takes a YouTube video URL as input and generates three different su
 
 ## Usage
 
-Run the script with a YouTube URL:
+Run the script with a YouTube URL and optional language parameter:
 ```bash
+# For English summaries (default)
 python yt_summarizer.py https://www.youtube.com/watch?v=VIDEO_ID
+
+# For Polish summaries
+python yt_summarizer.py https://www.youtube.com/watch?v=VIDEO_ID pl
 ```
 
 If no URL is provided, the script will use a default video URL.
+If no language is specified, English (eng) will be used.
+
+Valid language options:
+- eng: English summaries
+- pl: Polish summaries (Podsumowania po Polsku)
 
 ### Output Format
 
-The script will generate:
-1. English Summaries:
-   - Simple Summary (2-3 sentences)
-   - Moderate Summary (4-6 sentences)
-   - Complex Summary (comprehensive analysis)
+The script will generate three levels of summaries in the selected language:
 
-2. Polish Translations:
-   - Podsumowanie Proste (2-3 zdania)
-   - Podsumowanie Średnio Zaawansowane (4-6 zdań)
-   - Podsumowanie Złożone (szczegółowa analiza)
+For English (eng):
+- Simple Summary (2-3 sentences)
+- Moderate Summary (4-6 sentences)
+- Complex Summary (comprehensive analysis)
+
+For Polish (pl):
+- Podsumowanie Proste (2-3 zdania)
+- Podsumowanie Średnio Zaawansowane (4-6 zdań)
+- Podsumowanie Złożone (szczegółowa analiza)
 
 ## Requirements
 

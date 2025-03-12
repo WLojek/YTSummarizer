@@ -159,42 +159,56 @@ class YouTubeSummarizer:
         return results
 
 def main():
-    # Default URL if none provided
+    # Default URL and language if none provided
     default_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    default_language = "eng"
+    valid_languages = ["eng", "pl"]
     
+    # Parse command line arguments
     if len(sys.argv) < 2:
         print(f"No URL provided. Using default URL: {default_url}")
         youtube_url = default_url
+        language = default_language
     else:
         youtube_url = sys.argv[1]
+        language = sys.argv[2] if len(sys.argv) > 2 else default_language
+        
+        # Validate language parameter
+        if language not in valid_languages:
+            print(f"Invalid language parameter: {language}")
+            print(f"Valid options are: {', '.join(valid_languages)}")
+            print(f"Using default language: {default_language}")
+            language = default_language
         
     print(f"Summarizing video: {youtube_url}")
+    print(f"Language: {'English' if language == 'eng' else 'Polish'}")
     summarizer = YouTubeSummarizer()
 
     try:
         summaries = summarizer.summarize_video(youtube_url)
         
-        # Print English summaries
-        print("\n=== English Summaries ===")
-        print("\n--- Simple Summary ---")
-        print(summaries["english"]["simple"])
-        
-        print("\n--- Moderate Summary ---")
-        print(summaries["english"]["moderate"])
-        
-        print("\n--- Complex Summary ---")
-        print(summaries["english"]["complex"])
-
-        # Print Polish translations
-        print("\n=== Polish Translations ===")
-        print("\n--- Podsumowanie Proste ---")
-        print(summaries["polish"]["simple"])
-        
-        print("\n--- Podsumowanie Średnio Zaawansowane ---")
-        print(summaries["polish"]["moderate"])
-        
-        print("\n--- Podsumowanie Złożone ---")
-        print(summaries["polish"]["complex"])
+        if language == "eng":
+            # Print English summaries
+            print("\n=== English Summaries ===")
+            print("\n--- Simple Summary ---")
+            print(summaries["english"]["simple"])
+            
+            print("\n--- Moderate Summary ---")
+            print(summaries["english"]["moderate"])
+            
+            print("\n--- Complex Summary ---")
+            print(summaries["english"]["complex"])
+        else:  # language == "pl"
+            # Print Polish translations
+            print("\n=== Podsumowania po Polsku ===")
+            print("\n--- Podsumowanie Proste ---")
+            print(summaries["polish"]["simple"])
+            
+            print("\n--- Podsumowanie Średnio Zaawansowane ---")
+            print(summaries["polish"]["moderate"])
+            
+            print("\n--- Podsumowanie Złożone ---")
+            print(summaries["polish"]["complex"])
 
     except Exception as e:
         print(f"Error: {str(e)}")
