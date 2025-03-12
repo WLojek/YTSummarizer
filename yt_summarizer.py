@@ -86,12 +86,12 @@ class YouTubeSummarizer:
             # Add model-specific parameters
             if self.model == "o3-mini":
                 params.update({
-                    "max_completion_tokens": 1000
+                    "max_completion_tokens": 2000 if complexity == "complex" else 1000
                 })
             else:  # For other OpenAI models
                 params.update({
                     "temperature": 0.7,
-                    "max_tokens": 1000
+                    "max_tokens": 2000 if complexity == "complex" else 1000
                 })
                 
             # Send the request
@@ -119,12 +119,12 @@ class YouTubeSummarizer:
             # Add model-specific parameters
             if self.model == "o3-mini":
                 params.update({
-                    "max_completion_tokens": 1000
+                    "max_completion_tokens": 2000
                 })
             else:
                 params.update({
                     "temperature": 0.7,
-                    "max_tokens": 1000
+                    "max_tokens": 2000
                 })
 
             if self.client is None:
