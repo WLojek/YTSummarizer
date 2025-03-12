@@ -15,7 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / '.env')
 
 class YouTubeSummarizer:
-    def __init__(self, model="o3-mini"):
+    def __init__(self, model="o3-mini", language="eng"):
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         if not self.openai_api_key:
             raise ValueError("OpenAI API key not found. Please set it in your .env file.")
@@ -36,6 +36,7 @@ class YouTubeSummarizer:
                 raise
         
         self.model = model
+        self.language = language
 
     def extract_video_id(self, url: str) -> str:
         """Extract video ID from YouTube URL."""
@@ -66,11 +67,20 @@ class YouTubeSummarizer:
             raise Exception(f"Error getting transcript: {str(e)}")
 
     def generate_summary(self, text: str, complexity: str) -> str:
-        """Generate summary using OpenAI API."""
+        """Generate summary using OpenAI API with streaming."""
         prompts = {
-            "simple": "Provide a brief, simple overview of the main points in 2-3 sentences:",
-            "moderate": "Create a detailed summary that covers the key points and important details in 4-6 sentences:",
-            "complex": "Generate a comprehensive analysis including main themes, key arguments, and important details. Include any relevant context and implications:"
+            "simple": {
+                "eng": "Provide a brief, simple overview of the main points in 2-3 sentences:",
+                "pl": "Przedstaw krótkie podsumowanie głównych punktów w 2-3 zdaniach:"
+            },
+            "moderate": {
+                "eng": "Create a detailed summary that covers the key points and important details in 4-6 sentences:",
+                "pl": "Stwórz szczegółowe podsumowanie obejmujące kluczowe punkty i ważne detale w 4-6 zdaniach:"
+            },
+            "complex": {
+                "eng": "Generate a comprehensive analysis including main themes, key arguments, and important details. Include any relevant context and implications:",
+                "pl": "Stwórz kompleksową analizę zawierającą główne tematy, kluczowe argumenty i ważne szczegóły. Uwzględnij odpowiedni kontekst i implikacje:"
+            }
         }
 
         try:
@@ -78,9 +88,11 @@ class YouTubeSummarizer:
             params = {
                 "model": self.model,
                 "messages": [
-                    {"role": "system", "content": "You are a helpful assistant that summarizes content."},
-                    {"role": "user", "content": f"{prompts[complexity]}\n\n{text}"}
-                ]
+                    {"role": "system", "content": "You are a helpful assistant that summarizes content. " + 
+                     ("Respond in Polish." if self.language == "pl" else "Respond in English.")},
+                    {"role": "user", "content": f"{prompts[complexity][self.language]}\n\n{text}"}
+                ],
+                "stream": True  # Enable streaming
             }
 
             # Add model-specific parameters
@@ -94,26 +106,36 @@ class YouTubeSummarizer:
                     "max_tokens": 2000 if complexity == "complex" else 1000
                 })
                 
-            # Send the request
+            # Send the request and stream the response
+            full_response = ""
             if self.client is None:
                 import openai
-                response = openai.chat.completions.create(**params)
+                stream = openai.chat.completions.create(**params)
             else:
-                response = self.client.chat.completions.create(**params)
-                
-            return response.choices[0].message.content.strip()
+                stream = self.client.chat.completions.create(**params)
+
+            # Process the stream
+            for chunk in stream:
+                if chunk.choices[0].delta.content is not None:
+                    content = chunk.choices[0].delta.content
+                    print(content, end='', flush=True)
+                    full_response += content
+
+            print()  # New line after streaming completes
+            return full_response.strip()
         except Exception as e:
             raise Exception(f"Error generating summary: {str(e)}")
 
     def translate_to_polish(self, text: str) -> str:
-        """Translate text to Polish using OpenAI API."""
+        """Translate text to Polish using OpenAI API with streaming."""
         try:
             params = {
                 "model": self.model,
                 "messages": [
                     {"role": "system", "content": "You are a helpful translator. Translate the following text to Polish, maintaining the same tone and style:"},
                     {"role": "user", "content": text}
-                ]
+                ],
+                "stream": True  # Enable streaming
             }
 
             # Add model-specific parameters
@@ -127,13 +149,23 @@ class YouTubeSummarizer:
                     "max_tokens": 2000
                 })
 
+            # Send the request and stream the response
+            full_response = ""
             if self.client is None:
                 import openai
-                response = openai.chat.completions.create(**params)
+                stream = openai.chat.completions.create(**params)
             else:
-                response = self.client.chat.completions.create(**params)
+                stream = self.client.chat.completions.create(**params)
 
-            return response.choices[0].message.content.strip()
+            # Process the stream
+            for chunk in stream:
+                if chunk.choices[0].delta.content is not None:
+                    content = chunk.choices[0].delta.content
+                    print(content, end='', flush=True)
+                    full_response += content
+
+            print()  # New line after streaming completes
+            return full_response.strip()
         except Exception as e:
             raise Exception(f"Error translating to Polish: {str(e)}")
 
@@ -148,13 +180,28 @@ class YouTubeSummarizer:
         }
         
         for complexity in ["simple", "moderate", "complex"]:
-            # Generate English summary
-            english_summary = self.generate_summary(transcript, complexity)
-            results["english"][complexity] = english_summary
+            # Print header in the selected language
+            if complexity == "simple":
+                print("\n=== {} ===".format(
+                    "Podsumowanie Proste" if self.language == "pl" else "Simple Summary"
+                ))
+            elif complexity == "moderate":
+                print("\n=== {} ===".format(
+                    "Podsumowanie Średnio Zaawansowane" if self.language == "pl" else "Moderate Summary"
+                ))
+            else:
+                print("\n=== {} ===".format(
+                    "Podsumowanie Złożone" if self.language == "pl" else "Complex Summary"
+                ))
+
+            # Generate summary in the selected language
+            summary = self.generate_summary(transcript, complexity)
+            if self.language == "eng":
+                results["english"][complexity] = summary
+            else:
+                results["polish"][complexity] = summary
             
-            # Translate to Polish
-            polish_summary = self.translate_to_polish(english_summary)
-            results["polish"][complexity] = polish_summary
+            print("\n")  # Add spacing between sections
         
         return results
 
@@ -182,33 +229,18 @@ def main():
         
     print(f"Summarizing video: {youtube_url}")
     print(f"Language: {'English' if language == 'eng' else 'Polish'}")
-    summarizer = YouTubeSummarizer()
+    
+    # Pass language parameter to the summarizer
+    summarizer = YouTubeSummarizer(language=language)
 
     try:
         summaries = summarizer.summarize_video(youtube_url)
         
+        # Store results but don't display them again since they were streamed in real-time
         if language == "eng":
-            # Print English summaries
-            print("\n=== English Summaries ===")
-            print("\n--- Simple Summary ---")
-            print(summaries["english"]["simple"])
-            
-            print("\n--- Moderate Summary ---")
-            print(summaries["english"]["moderate"])
-            
-            print("\n--- Complex Summary ---")
-            print(summaries["english"]["complex"])
-        else:  # language == "pl"
-            # Print Polish translations
-            print("\n=== Podsumowania po Polsku ===")
-            print("\n--- Podsumowanie Proste ---")
-            print(summaries["polish"]["simple"])
-            
-            print("\n--- Podsumowanie Średnio Zaawansowane ---")
-            print(summaries["polish"]["moderate"])
-            
-            print("\n--- Podsumowanie Złożone ---")
-            print(summaries["polish"]["complex"])
+            selected_summaries = summaries["english"]
+        else:
+            selected_summaries = summaries["polish"]
 
     except Exception as e:
         print(f"Error: {str(e)}")
