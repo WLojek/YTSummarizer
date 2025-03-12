@@ -1,0 +1,5 @@
+python-dotenv
+openai
+youtube-transcript-api
+pytube
+httpx
