@@ -8,6 +8,23 @@ from openai import OpenAI
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 
+# Custom exception classes
+class TranscriptNotFoundError(Exception):
+    """Raised when the transcript list cannot be retrieved for a video."""
+    pass
+
+class NoTranscriptAvailableError(Exception):
+    """Raised when no transcript is available in any attempted format."""
+    pass
+
+class TranslationError(Exception):
+    """Raised when translation of the transcript fails."""
+    pass
+
+class TranscriptProcessingError(Exception):
+    """Raised when there's an error processing or formatting the transcript."""
+    pass
+
 # Get the directory containing this script
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -51,20 +68,100 @@ class YouTubeSummarizer:
     def get_transcript(self, video_id: str) -> str:
         """Get transcript from YouTube video."""
         try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id)
+            # Map our language codes to YouTube's language codes
+            language_map = {
+                "eng": "en",
+                "pl": "pl"
+            }
             
-            # Directly format the transcript as a string
+            try:
+                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            except Exception as e:
+                raise TranscriptNotFoundError(f"Could not retrieve transcript list for video {video_id}: {str(e)}")
+            
+            transcript = None
+            manual_error = None
+            auto_error = None
+            translation_error = None
+            
+            # Try different methods to get the transcript
+            try:
+                # First try to get manual transcript in the requested language
+                transcript = transcript_list.find_transcript([language_map[self.language]]).fetch()
+            except Exception as e:
+                manual_error = f"Manual transcript not available in {self.language}: {str(e)}"
+                try:
+                    # Then try to get auto-generated transcript in the requested language
+                    transcript = transcript_list.find_generated_transcript([language_map[self.language]]).fetch()
+                except Exception as e:
+                    auto_error = f"Auto-generated transcript not available in {self.language}: {str(e)}"
+                    try:
+                        # Try to find any available auto-generated transcript and translate it
+                        for transcript_data in transcript_list._manually_created_transcripts.values():
+                            if transcript_data.is_generated:
+                                if self.language == "eng":
+                                    # If English is requested, translate to English
+                                    transcript = transcript_data.translate('en').fetch()
+                                else:
+                                    # If target language is requested, try to translate to it
+                                    if transcript_data.language_code != language_map[self.language]:
+                                        transcript = transcript_data.translate(language_map[self.language]).fetch()
+                                    else:
+                                        transcript = transcript_data.fetch()
+                                break
+                        
+                        if transcript is None:
+                            # If no transcript found in manually created, try generated ones
+                            for transcript_data in transcript_list._generated_transcripts.values():
+                                if self.language == "eng":
+                                    # If English is requested, translate to English
+                                    transcript = transcript_data.translate('en').fetch()
+                                else:
+                                    # If target language is requested, try to translate to it
+                                    if transcript_data.language_code != language_map[self.language]:
+                                        transcript = transcript_data.translate(language_map[self.language]).fetch()
+                                    else:
+                                        transcript = transcript_data.fetch()
+                                break
+                                
+                        if transcript is None:
+                            raise NoTranscriptAvailableError("No transcripts available for this video")
+                    except Exception as e:
+                        translation_error = f"Could not get or translate available transcript: {str(e)}"
+                        raise NoTranscriptAvailableError(
+                            f"All transcript retrieval methods failed:\n"
+                            f"- {manual_error}\n"
+                            f"- {auto_error}\n"
+                            f"- {translation_error}"
+                        )
+            
+            if transcript is None:
+                raise TranscriptProcessingError("No transcript was retrieved despite no errors being raised")
+            
+            # Format the transcript, handling both dictionary and object formats
             formatted_transcript = ""
             for entry in transcript:
-                if isinstance(entry, dict) and 'text' in entry:
-                    formatted_transcript += entry['text'] + " "
-            
-            if not formatted_transcript:
-                raise Exception("Could not extract text from transcript")
+                text = None
+                if isinstance(entry, dict):
+                    text = entry.get('text', '')
+                else:
+                    # Handle object format
+                    text = getattr(entry, 'text', '')
                 
-            return formatted_transcript.strip()
+                if text:
+                    formatted_transcript += text + " "
+            
+            formatted_transcript = formatted_transcript.strip()
+            if not formatted_transcript:
+                raise TranscriptProcessingError("Transcript was retrieved but contained no text")
+            
+            return formatted_transcript
+        
+        except (TranscriptNotFoundError, NoTranscriptAvailableError, TranslationError, TranscriptProcessingError) as e:
+            # Re-raise these specific errors as they already have descriptive messages
+            raise
         except Exception as e:
-            raise Exception(f"Error getting transcript: {str(e)}")
+            raise TranscriptProcessingError(f"Unexpected error while processing transcript: {str(e)}")
 
     def generate_summary(self, text: str, complexity: str) -> str:
         """Generate summary using OpenAI API with streaming."""
