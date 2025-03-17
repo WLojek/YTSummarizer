@@ -175,8 +175,8 @@ class YouTubeSummarizer:
                 "pl": "Stwórz szczegółowe podsumowanie obejmujące kluczowe punkty i ważne detale w 4-6 zdaniach:"
             },
             "complex": {
-                "eng": "Generate a comprehensive analysis including main themes, key arguments, and important details. Include any relevant context and implications:",
-                "pl": "Stwórz kompleksową analizę zawierającą główne tematy, kluczowe argumenty i ważne szczegóły. Uwzględnij odpowiedni kontekst i implikacje:"
+                "eng": "Generate a comprehensive analysis including main themes, key arguments, and important details. Include any relevant context, mentioned tools/products and implications:",
+                "pl": "Stwórz kompleksową analizę zawierającą główne tematy, kluczowe argumenty i ważne szczegóły. Uwzględnij odpowiedni kontekst, wspomniane narzędzia/produkty i implikacje:"
             }
         }
 
